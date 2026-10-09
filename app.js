@@ -133,8 +133,9 @@ const layers = { search: L.layerGroup().addTo(map), trip: L.layerGroup().addTo(m
 const pinIcon = (label = '', cls = '') => L.divIcon({className: 'pin-wrap', html: `<div class="pin-drop"><div class="pin ${cls}"><span>${esc(label)}</span></div></div><div class="pin-shadow"></div>`, iconSize: [30, 42], iconAnchor: [15, 40], popupAnchor: [0, -38]});
 const poiIcon = emoji => L.divIcon({className: 'poi-wrap', html: `<div class="poi">${emoji}</div>`, iconSize: [28, 28], iconAnchor: [14, 14]});
 // Keep targets centred in the visible part of the map (not hidden behind the glass panel / bottom sheet)
-function viewOffset() { const pn = document.getElementById('panel'); if (matchMedia('(max-width: 760px)').matches) return L.point(0, pn.classList.contains('collapsed') ? 66 : pn.offsetHeight / 2); return L.point(-(pn.offsetWidth + 12) / 2, 0); }
-function fitPad(extra = {}) { const pn = document.getElementById('panel'); const mob = matchMedia('(max-width: 760px)').matches; return {paddingTopLeft: mob ? [30, 60] : [pn.offsetWidth + 40, 40], paddingBottomRight: mob ? [30, (pn.classList.contains('collapsed') ? 132 : pn.offsetHeight) + 20] : [50, 40], ...extra}; }
+function tabbarH() { const tb = document.getElementById('tabbar'); return tb ? innerHeight - tb.getBoundingClientRect().top : 0; }
+function viewOffset() { const pn = document.getElementById('panel'), pb = pn.getBoundingClientRect().bottom, tb = tabbarH(); if (matchMedia('(max-width: 760px)').matches) return L.point(0, (tb - pb) / 2); return L.point(-(pn.offsetWidth + 24) / 2, tb / 2); }
+function fitPad(extra = {}) { const pn = document.getElementById('panel'); const mob = matchMedia('(max-width: 760px)').matches; return {paddingTopLeft: mob ? [30, pn.getBoundingClientRect().bottom + 30] : [pn.offsetWidth + 50, 40], paddingBottomRight: mob ? [30, tabbarH() + 30] : [50, tabbarH() + 30], ...extra}; }
 function flyTo(lat, lon, zoom) { const c = map.unproject(map.project([lat, lon], zoom).add(viewOffset()), zoom); reduceMotion ? map.setView(c, zoom) : map.flyTo(c, zoom, {duration: 1.3, easeLinearity: 0.2}); }
 function zoomForPlace(p) { const r = p.rank || 16; return r >= 26 ? 18 : r >= 20 ? 16 : r >= 18 ? 15 : r >= 16 ? 13 : r >= 12 ? 10 : 6; }
 const popupHooks = [];
@@ -142,12 +143,13 @@ function wirePopAdd(p) { const b = $('#popAdd'); b && (b.onclick = () => addToTr
 function showPlace(p) {
   collapseSheetOnMobile();
   layers.search.clearLayers();
-  const m = L.marker([p.lat, p.lon], {icon: pinIcon('★', 'search')}).addTo(layers.search);
+  const m = L.marker([p.lat, p.lon], {icon: pinIcon('★', 'found')}).addTo(layers.search);
   m.bindPopup(`<div class="t">${flag(p.cc)} ${esc(p.name)}</div><div class="s">${esc(p.sub)}</div><div class="row"><button class="btn primary sm" id="popAdd">＋ Add to trip</button>${popupHooks.map(h => h.html(p)).join('')}</div>`);
   m.on('popupopen', () => { wirePopAdd(p); popupHooks.forEach(h => h.wire(p)); });
   if (p.bbox) reduceMotion ? map.fitBounds(p.bbox, fitPad({maxZoom: 16})) : map.flyToBounds(p.bbox, fitPad({maxZoom: 16, duration: 1.3}));
   else flyTo(p.lat, p.lon, zoomForPlace(p));
-  setTimeout(() => m.openPopup(), reduceMotion ? 50 : 1350);
+  let opened = false; const open = () => { if (opened || !map.hasLayer(m)) return; opened = true; m.openPopup(); };
+  setTimeout(() => map.once('moveend', open), 30); setTimeout(open, 4000);
 }
 
 // Locate me (browser GPS)
@@ -217,6 +219,7 @@ function paintResults(res, head = '') {
   });
 }
 async function runSearch(q) {
+  expandSheet();
   q = q.trim(); if (!q) return;
   hideSuggest();
   const box = $('#results'); box.innerHTML = skeleton(4, 78); $('#searchHint').classList.add('hidden');
@@ -292,29 +295,33 @@ function tripDays(t) {
 const tripLow = t => t.destinations.filter(d => d.connectivity?.low);
 const isDownloaded = t => !!(t.offline && t.offline.ok && t.offline.destKey === t.destinations.map(d => d.id).join(','));
 function setMainTab(tab) {
+  if (tab === 'explore') tab = 'map';
   state.tab = tab;
-  $$('.tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  moveIndicator($('.tabs'));
-  $$('.tab-body').forEach(el => { const n = el.id.slice(4); el.classList.toggle('hidden', n !== tab); if (n === tab) { el.classList.remove('view-in'); void el.offsetWidth; el.classList.add('view-in'); } });
-  if (tab === 'trips') renderTrips(true); else { layers.trip.clearLayers(); layers.nearby.clearLayers(); }
+  if (window.roamly?.nav) window.roamly.nav.go(tab);
+  if (tab === 'trips') renderTrips(true);
+  if (tab === 'map') panel.classList.add('collapsed');
   Object.entries(mainTabHooks).forEach(([k, h]) => k === tab ? h.show?.() : h.hide?.());
-  expandSheet();
 }
 const mainTabHooks = {};
-$$('.tabs .tab').forEach(b => b.onclick = () => setMainTab(b.dataset.tab));
+
 
 function renderTrips(fit) {
   if (state.view === 'trip' && getTrip(state.tripId)) return renderTrip(fit);
   state.view = 'list'; $('#tripDetail').classList.add('hidden'); const L_ = $('#tripList'); L_.classList.remove('hidden');
   layers.nearby.clearLayers(); drawTripsOverview(fit);
   const warn = trips.filter(t => tripLow(t).length && !isDownloaded(t));
-  L_.innerHTML = `<div class="row between" style="margin:4px 0 10px"><h2 class="screen-title">Trips</h2><button class="icon-btn accent" id="newTrip" title="New trip" aria-label="New trip">＋</button></div>
+  L_.innerHTML = `<div class="large-head"><h1 class="large-title">Trips</h1><button class="round-btn" id="newTrip" title="New trip" aria-label="New trip">＋</button></div>
   
   <div class="stack" id="tripCards">${trips.length ? trips.map(t => {
     const low = tripLow(t).length, dl = isDownloaded(t);
-    return `<div class="card trip-card press" data-id="${t.id}"><div class="row between"><h3>${esc(t.name)}</h3><span class="chev">›</span></div>
-      <div class="meta">${t.start ? `${fmtDate(t.start)} – ${fmtDate(t.end)}` : `${t.dayCount} days`} · ${t.destinations.length} stop${t.destinations.length === 1 ? '' : 's'}${low && !dl ? ' · <span class="warn-t">needs download</span>' : dl ? ' · offline ✓' : ''}</div></div>`;
-  }).join('') : `<div class="empty"><div class="big">🗺️</div>No trips yet</div>`}</div>`;
+    const days = t.start ? Math.ceil((new Date(t.start + 'T00:00') - new Date(today() + 'T00:00')) / 864e5) : null;
+    const when = days == null ? '' : days > 1 ? `in ${days} days` : days === 1 ? 'tomorrow' : days === 0 ? 'today' : (t.end >= today() ? 'now' : 'past');
+    const hue = [...t.name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+    return `<div class="trip-card rich press" data-id="${t.id}"><div class="cover" style="--h:${hue}"><span>${t.destinations[0] ? flag(t.destinations[0].cc) : '🧭'}</span></div>
+      <div class="grow"><h3>${esc(t.name)}</h3><div class="meta">${t.start ? `${fmtDate(t.start)} – ${fmtDate(t.end)}` : `${t.dayCount} days`} · ${t.destinations.length} stop${t.destinations.length === 1 ? '' : 's'}</div>
+      <div class="meta small">${t.destinations.slice(0, 3).map(d => esc(d.name)).join(' → ')}${low && !dl ? ' · <span class="warn-t">needs download</span>' : dl ? ' · <span class="ok-t">offline ✓</span>' : ''}</div></div>
+      ${when ? `<span class="when ${when === 'past' ? 'past' : ''}">${when}</span>` : ''}</div>`;
+  }).join('') : `<div class="empty"><div class="big">🗺️</div><b>No trips yet</b><div class="meta" style="margin-top:4px">Tap ＋ to plan your first one.</div></div>`}</div>`;
   stagger($('#tripCards'));
   $('#newTrip').onclick = () => tripForm();
   $$('.trip-card', L_).forEach(c => c.onclick = () => openTrip(c.dataset.id));
@@ -377,8 +384,8 @@ function renderTrip(animate) {
   const t = getTrip(state.tripId); if (!t) { state.view = 'list'; return renderTrips(); }
   $('#tripList').classList.add('hidden'); const el = $('#tripDetail'); el.classList.remove('hidden');
   const low = tripLow(t), dl = isDownloaded(t);
-  el.innerHTML = `<div class="trip-head"><button class="icon-btn" id="back" aria-label="Back to trips">‹</button><div class="grow"><h2 class="trip-title">${esc(t.name)}</h2><div class="meta">${t.start ? `${fmtDate(t.start)} – ${fmtDate(t.end)}` : `${t.dayCount} days`}${dl ? ' · offline ✓' : ''}</div></div>
-      <div class="menu-wrap"><button class="icon-btn" id="tripMenu" aria-label="Trip options">⋯</button><div class="menu hidden" id="tripMenuList"><button id="dlTrip">${dl ? 'Update offline copy' : 'Download for offline'}</button><button id="editTrip">Edit trip</button>${tripMenuHooks.map((h, i) => `<button data-hook="${i}">${esc(h.label(t))}</button>`).join('')}<button id="delTrip" class="danger-t">Delete trip</button></div></div></div>
+  el.innerHTML = `<div class="trip-nav"><button class="back-btn" id="back" aria-label="Back to trips">‹ Trips</button><div class="row"><button class="icon-btn" id="tripOnMap" aria-label="Show on map"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/></svg></button><div class="menu-wrap" id="menuSlot"></div></div></div><div class="trip-head"><div class="grow"><h2 class="trip-title">${esc(t.name)}</h2><div class="meta">${t.start ? `${fmtDate(t.start)} – ${fmtDate(t.end)}` : `${t.dayCount} days`}${dl ? ' · offline ✓' : ''}</div></div>
+      <div class="menu-wrap move-me"><button class="icon-btn" id="tripMenu" aria-label="Trip options">⋯</button><div class="menu hidden" id="tripMenuList"><button id="dlTrip">${dl ? 'Update offline copy' : 'Download for offline'}</button><button id="editTrip">Edit trip</button>${tripMenuHooks.map((h, i) => `<button data-hook="${i}">${esc(h.label(t))}</button>`).join('')}<button id="delTrip" class="danger-t">Delete trip</button></div></div></div>
     <div id="dlProgress" class="hidden"><div class="progress"><div></div></div><div class="meta" id="dlText" style="margin-top:4px"></div></div>
     ${low.length && !dl ? `<div class="lowsig pop-in" id="lowSig"><h4>Low signal expected</h4><p>${low.map(d => esc(d.name)).join(', ')} ${low.length === 1 ? 'looks' : 'look'} remote. Save the trip so it works without signal.</p>
       <div class="row"><button class="btn primary sm" id="dlAll">Download everything</button><details><summary>Why?</summary><ul>${[...new Set(low.flatMap(d => d.connectivity.reasons))].slice(0, 4).map(r => `<li>${esc(r)}</li>`).join('')}</ul></details></div></div>` : ''}
@@ -386,6 +393,8 @@ function renderTrip(animate) {
     <div id="tripBody"></div>`;
   if (animate) { el.classList.remove('view-in'); void el.offsetWidth; el.classList.add('view-in'); }
   $('#back').onclick = () => { state.view = 'list'; renderTrips(true); const L_ = $('#tripList'); L_.classList.remove('view-back'); void L_.offsetWidth; L_.classList.add('view-back'); };
+  const mv = $('.move-me', el); $('#menuSlot').replaceWith(mv);
+  $('#tripOnMap').onclick = () => { setMainTab('map'); collapseSheetOnMobile(); drawTrip(t, true); };
   const menu = $('#tripMenuList'), closeMenu = () => menu.classList.add('hidden');
   $('#tripMenu').onclick = e => { e.stopPropagation(); menu.classList.toggle('hidden'); if (!menu.classList.contains('hidden')) setTimeout(() => document.addEventListener('click', closeMenu, {once: true}), 0); };
   $('#editTrip').onclick = () => { closeMenu(); tripForm(t); };
@@ -426,7 +435,7 @@ function renderPlan(t, body) {
   const ge = $('#goExplore', body); ge && (ge.onclick = e => { e.preventDefault(); goEx(); });
   const am = $('#addMore', body); am && (am.onclick = goEx);
   $$('.dest', body).forEach(el => { const id = el.dataset.id, i = t.destinations.findIndex(d => d.id === id), d = t.destinations[i];
-    el.onclick = e => { if (e.target.closest('button')) return; collapseSheetOnMobile(); flyTo(d.lat, d.lon, 14); };
+    el.onclick = e => { if (e.target.closest('button')) return; setMainTab('map'); collapseSheetOnMobile(); flyTo(d.lat, d.lon, 14); };
     $('.rm', el).onclick = () => { el.classList.add('leave'); setTimeout(() => { t.destinations.splice(i, 1); delete t.cache.weather[id]; delete t.cache.nearby[id]; saveTrips(); renderTrip(); }, reduceMotion ? 0 : 220); };
   });
   $$('.day', body).forEach(dEl => { const di = +dEl.dataset.d;
@@ -573,7 +582,7 @@ async function renderNearby(t, body) {
     list.innerHTML = `<div class="meta" style="margin:4px 2px 8px">${items.length} places near ${esc(d.name)}${Date.now() - nb.at > 864e5 ? ` · saved ${new Date(nb.at).toLocaleDateString()}` : ''}</div><div class="stack" id="nbStack">${items.map((i, n) => `<div class="poi-row press" data-n="${n}"><span class="poi-ico">${POI[i.kind] || '📍'}</span><div class="grow"><b>${esc(i.name)}</b><div class="meta">${esc(typeLabel(i.kind))}${i.cuisine ? ' · ' + esc(i.cuisine.replace(/;/g, ', ').replace(/_/g, ' ')) : ''}${i.hours ? ' · ' + esc(i.hours) : ''}</div></div><span class="meta">${i.dist < 1 ? Math.round(i.dist * 1000) + ' m' : i.dist.toFixed(1) + ' km'}</span></div>`).join('')}</div>`;
     stagger($('#nbStack'));
     const markers = items.map(i => L.marker([i.lat, i.lon], {icon: poiIcon(POI[i.kind] || '📍')}).addTo(layers.nearby).bindPopup(`<div class="t">${esc(i.name)}</div><div class="s">${esc(typeLabel(i.kind))}${i.hours ? '<br>🕒 ' + esc(i.hours) : ''}${i.phone ? '<br>📞 ' + esc(i.phone) : ''}</div>${i.web && /^https?:/.test(i.web) ? `<a href="${esc(i.web)}" target="_blank" rel="noopener">Website ↗</a>` : ''}`));
-    $$('.poi-row', list).forEach(r => r.onclick = () => { const n = +r.dataset.n, i = items[n]; collapseSheetOnMobile(); flyTo(i.lat, i.lon, 17); setTimeout(() => markers[n].openPopup(), reduceMotion ? 0 : 1350); });
+    $$('.poi-row', list).forEach(r => r.onclick = () => { const n = +r.dataset.n, i = items[n]; setMainTab('map'); collapseSheetOnMobile(); flyTo(i.lat, i.lon, 17); setTimeout(() => markers[n].openPopup(), reduceMotion ? 0 : 1350); });
     const pts = items.slice(0, 40).map(i => [i.lat, i.lon]).concat([[d.lat, d.lon]]);
     reduceMotion ? map.fitBounds(pts, fitPad({maxZoom: 16})) : map.flyToBounds(pts, fitPad({maxZoom: 16, duration: 1}));
   }
@@ -700,7 +709,7 @@ navigator.connection?.addEventListener?.('change', () => updateNet());
 const panel = $('#panel'); const isMobile = () => matchMedia('(max-width: 760px)').matches;
 function collapseSheetOnMobile() { if (isMobile()) panel.classList.add('collapsed'); }
 function expandSheet() { panel.classList.remove('collapsed'); }
-$('#panelToggle').onclick = () => panel.classList.toggle('collapsed');
+$('#panelToggle') && ($('#panelToggle').onclick = () => panel.classList.toggle('collapsed'));
 (() => { // drag the handle to open/close the sheet (transform only)
   const h = $('#sheetHandle'); if (!h) return; let y0 = null, dy = 0, base = 0;
   h.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; base = panel.classList.contains('collapsed') ? panel.offsetHeight - 132 : 0; panel.classList.add('dragging'); h.setPointerCapture(e.pointerId); });
@@ -719,10 +728,10 @@ function reloadUserData(ns) {
   userNs = ns; trips = store.get('trips', []); trips.forEach(normTrip);
   state.view = 'list'; state.tripId = null; layers.search.clearLayers();
   bootHooks.forEach(h => h.userChanged?.());
-  setMainTab(trips.length ? 'trips' : 'explore'); updateNet();
+  setMainTab('home'); updateNet();
 }
 const bootHooks = [];
-const R = window.roamly = {trips: () => trips, setTrips: v => { trips = v; }, runSearch, downloadTrip, getTrip, state, updateNet, map, gl: () => glLayer.getMaplibreMap(),
+const R = window.roamly = {tripForm, fetchWeather, isDownloaded, tripLow, drawTrip, trips: () => trips, setTrips: v => { trips = v; }, runSearch, downloadTrip, getTrip, state, updateNet, map, gl: () => glLayer.getMaplibreMap(),
   store, saveTrips, normTrip, modal, toast, esc, $, $$, uid, sleep, flag, fmtDate, today, stagger, skeleton, fetchJSON, idb, layers, flyTo, fitPad, pinIcon, reduceMotion,
   collapseSheetOnMobile, expandSheet, typeLabel, renderTrip, renderTrips, renderTripBody, setMainTab, moveIndicator, reloadUserData, isMobile,
   user: () => userNs,
@@ -731,5 +740,5 @@ const R = window.roamly = {trips: () => trips, setTrips: v => { trips = v; }, ru
   addPopupAction(h) { popupHooks.push(h); }, addTripMenuItem(h) { tripMenuHooks.push(h); }, onBoot(h) { bootHooks.push(h); },
 };
 // Feature modules (loaded after this file) register themselves, then we render
-addEventListener('DOMContentLoaded', () => { bootHooks.forEach(h => h.init?.()); if (trips.length) setMainTab('trips'); });
+addEventListener('DOMContentLoaded', () => { bootHooks.forEach(h => h.init?.()); });
 })();

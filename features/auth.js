@@ -80,21 +80,15 @@ $('#authForm').onsubmit = async e => {
   finally { go.disabled = false; go.classList.remove('busy'); }
 };
 
-// Avatar + account menu in the header
-const brand = $('.brand'); const wrap = document.createElement('div'); wrap.className = 'row'; wrap.style.gap = '10px';
-const net = $('#netStatus'); brand.appendChild(wrap); wrap.appendChild(net);
-wrap.insertAdjacentHTML('beforeend', `<div class="menu-wrap"><button class="avatar" id="avatarBtn" aria-label="Account"></button><div class="menu hidden" id="acctMenu"></div></div>`);
+// Avatar on Home opens Profile; Profile renders the account card
 function paintAvatar() {
-  const acc = current(), btn = $('#avatarBtn');
-  btn.textContent = acc ? initials(acc.name) : ''; btn.classList.toggle('guest', !acc); btn.innerHTML = acc ? esc(initials(acc.name)) : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>';
-  $('#acctMenu').innerHTML = acc ? `<div class="menu-head"><b>${esc(acc.name)}</b><span>${esc(acc.email)}</span></div><button id="mOut">Sign out</button>` : `<div class="menu-head"><b>Guest</b><span>Data stays on this device</span></div><button id="mIn">Sign in</button><button id="mUp">Create account</button>`;
-  const close = () => $('#acctMenu').classList.add('hidden');
-  $('#mOut') && ($('#mOut').onclick = () => { close(); signOut(); });
-  $('#mIn') && ($('#mIn').onclick = () => { close(); showAuth('signin'); });
-  $('#mUp') && ($('#mUp').onclick = () => { close(); showAuth('signup'); });
+  const acc = current(), btn = $('#homeAvatar'); if (!btn) return;
+  btn.classList.toggle('guest', !acc);
+  btn.innerHTML = acc ? esc(initials(acc.name)) : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>';
+  R.profile?.render?.(); R.home?.render?.();
 }
-$('#avatarBtn').onclick = e => { e.stopPropagation(); const m = $('#acctMenu'); m.classList.toggle('hidden'); if (!m.classList.contains('hidden')) setTimeout(() => document.addEventListener('click', () => m.classList.add('hidden'), {once: true}), 0); };
+$('#homeAvatar').onclick = () => R.setMainTab('profile');
 paintAvatar();
 if (!localStorage.getItem('roamly.session') && !localStorage.getItem('roamly.authSeen')) showAuth('signin');
-R.auth = {current, signOut, showAuth};
+R.auth = {current, signOut, showAuth, initials, paintAvatar};
 })();

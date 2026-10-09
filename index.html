@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0f14">
+<meta name="theme-color" content="#000000">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="description" content="Roamly – plan trips with pin-point maps that work offline.">
 <title>Roamly – Travel planner</title>
@@ -11,48 +11,86 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Roamly">
+<link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1290x2796.png">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="shell.css">
 </head>
 <body>
+<div id="splash" aria-hidden="true"><div class="splash-in"><img src="icons/icon.svg" alt=""><span>Roamly</span></div></div>
+<div id="netBanner" class="banner hidden" role="status"></div>
+
 <div id="app">
-  <aside id="panel" class="panel">
-    <div id="sheetHandle" class="sheet-handle" aria-label="Drag to resize"><span></span></div>
-    <header class="brand">
-      <div class="logo"><img src="icons/icon.svg" alt=""><span>Roamly</span></div>
-      <div id="netStatus" class="net-pill" title="Connection status">Online</div>
-    </header>
-    <div id="netBanner" class="banner hidden" role="status"></div>
+  <!-- HOME -->
+  <section class="screen active" id="screen-home" data-title="Home">
+    <header class="navbar"><span class="nav-small">Home</span></header>
+    <div class="scroller">
+      <div class="large-head">
+        <div><div class="eyebrow" id="homeDate"></div><h1 class="large-title" id="homeGreeting">Hello</h1></div>
+        <div class="row" style="gap:10px"><div id="netStatus" class="net-pill">Online</div><button class="avatar" id="homeAvatar" aria-label="Profile"></button></div>
+      </div>
+      <div id="homeBody"></div>
+    </div>
+  </section>
 
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="explore" role="tab">Explore</button>
-      <button class="tab" data-tab="trips" role="tab">Trips</button>
-      <span class="ind"></span>
-    </nav>
-
-    <section id="tab-explore" class="tab-body">
-      <form id="searchForm" class="search" autocomplete="off">
-        <input id="searchInput" type="search" placeholder="Search places" aria-label="Search places">
-        <button type="submit" class="icon-btn accent search-go" aria-label="Search">→</button>
-      </form>
-      <ul id="suggestions" class="suggestions hidden"></ul>
-      <p id="searchHint" class="hint">Towns, villages and addresses worldwide.</p>
-      <div id="results" class="results"></div>
-    </section>
-
-    <section id="tab-trips" class="tab-body hidden">
+  <!-- TRIPS -->
+  <section class="screen" id="screen-trips" data-title="Trips">
+    <header class="navbar"><span class="nav-small">Trips</span></header>
+    <div class="scroller" id="tab-trips">
       <div id="tripList"></div>
       <div id="tripDetail" class="hidden"></div>
-    </section>
-  </aside>
-  <main id="mapWrap">
-    <div id="map"></div>
-    <button id="locateBtn" class="fab" title="Locate me" aria-label="Locate me">◎</button>
-    <button id="panelToggle" class="fab fab-panel" aria-label="Toggle panel">☰</button>
-  </main>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section class="screen" id="screen-map" data-title="Map">
+    <main id="mapWrap">
+      <div id="map"></div>
+      <button id="locateBtn" class="fab" title="Locate me" aria-label="Locate me">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+    </main>
+    <aside id="panel" class="panel collapsed">
+      <section id="tab-explore">
+        <form id="searchForm" class="search" autocomplete="off">
+          <svg class="s-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="searchInput" type="search" placeholder="Search towns, villages, addresses" aria-label="Search places" enterkeyhint="search">
+          <button type="submit" class="icon-btn accent search-go" aria-label="Search">→</button>
+        </form>
+        <div class="panel-body">
+          <ul id="suggestions" class="suggestions hidden"></ul>
+          <p id="searchHint" class="hint hidden"></p>
+          <div id="results" class="results"></div>
+        </div>
+      </section>
+    </aside>
+  </section>
+
+  <!-- LEARN -->
+  <section class="screen" id="screen-learn" data-title="Learn">
+    <header class="navbar"><span class="nav-small">Learn</span></header>
+    <div class="scroller"><div class="large-head"><h1 class="large-title">Learn</h1></div><div id="learnBody"></div></div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="screen" id="screen-profile" data-title="Profile">
+    <header class="navbar"><span class="nav-small">Profile</span></header>
+    <div class="scroller"><div class="large-head"><h1 class="large-title">Profile</h1></div><div id="profileBody"></div></div>
+  </section>
 </div>
+
+<nav id="tabbar" role="tablist">
+  <span class="tb-ind"></span>
+  <button data-s="home" class="active" role="tab" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+  <button data-s="trips" role="tab" aria-label="Trips"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg><span>Trips</span></button>
+  <button data-s="map" role="tab" aria-label="Map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>Map</span></button>
+  <button data-s="learn" role="tab" aria-label="Learn"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 12h5"/></svg><span>Learn</span></button>
+  <button data-s="profile" role="tab" aria-label="Profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>Profile</span></button>
+</nav>
 
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card" id="modalCard"></div></div>
 <div id="toast" class="toast hidden"></div>
@@ -60,8 +98,13 @@
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/maplibre/maplibre-gl.js"></script>
 <script src="vendor/maplibre/leaflet-maplibre-gl.js"></script>
+<script src="data/lang.js"></script>
 <script src="app.js"></script>
+<script src="features/shell.js"></script>
 <script src="features/auth.js"></script>
 <script src="features/share.js"></script>
+<script src="features/home.js"></script>
+<script src="features/profile.js"></script>
+<script src="features/learn.js"></script>
 </body>
 </html>
