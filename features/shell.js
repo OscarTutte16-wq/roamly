@@ -39,3 +39,13 @@ R.onBoot({init: () => {
   $('#searchInput').addEventListener('focus', () => R.expandSheet());
 }});
 })();
+/* The connection banner is a transient heads-up: it slides away after a few seconds (tap to dismiss sooner); the status stays in the Home pill */
+(() => {
+  const b = document.getElementById('netBanner'); if (!b) return; let t, cur = '', dismissed = '';
+  const keyOf = () => b.className.replace(/\b(auto-out|pop-in|hidden)\b/g, '').trim() + '|' + b.textContent.slice(0, 40);
+  const hide = () => { dismissed = cur; if (b.classList.contains('hidden')) return; b.classList.add('auto-out'); setTimeout(() => { b.classList.add('hidden'); b.classList.remove('auto-out'); }, 260); };
+  new MutationObserver(() => { if (b.classList.contains('hidden')) return; const k = keyOf(); if (k === dismissed) { b.classList.add('hidden'); return; } if (k === cur) return; cur = k; clearTimeout(t); t = setTimeout(hide, 6500); })
+    .observe(b, {attributes: true, attributeFilter: ['class'], childList: true});
+  b.addEventListener('click', e => { if (!e.target.closest('button')) { clearTimeout(t); hide(); } });
+  const reset = () => { dismissed = ''; cur = ''; }; addEventListener('online', reset); addEventListener('offline', reset);
+})();

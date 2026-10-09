@@ -353,7 +353,7 @@ function tripForm(t) {
         if (pendingAdd) { const p = pendingAdd; pendingAdd = null; addDestination(nt, p); } else toast('Trip created');
       } else { Object.assign(t, upd); saveTrips(); close(); renderTrip(); toast('Trip saved'); }
     };
-    const del = $('#fDel', c); del && (del.onclick = async () => { if (!confirm(`Delete “${t.name}”? This can't be undone.`)) return; for (const tk of t.tickets) for (const f of tk.files || []) await idb.del(f.id).catch(() => {}); trips = trips.filter(x => x.id !== t.id); saveTrips(); close(); state.view = 'list'; renderTrips(); toast('Trip deleted'); });
+    const del = $('#fDel', c); del && (del.onclick = async () => { if (!confirm(`Delete “${t.name}”? This can't be undone.`)) return; for (const tk of t.tickets) for (const f of tk.files || []) await idb.del(f.id).catch(() => {}); for (const h of tripDeleteHooks) { try { await h(t); } catch {} } trips = trips.filter(x => x.id !== t.id); saveTrips(); close(); state.view = 'list'; renderTrips(); toast('Trip deleted'); });
   });
 }
 let pendingAdd = null;
@@ -378,7 +378,7 @@ async function addDestination(t, p) {
 }
 
 /* ---------------- Trip detail ---------------- */
-const TRIP_RENDERERS = {}, tripMenuHooks = [];
+const TRIP_RENDERERS = {}, tripMenuHooks = [], downloadSteps = [], tripDeleteHooks = [], drawTripHooks = [];
 const TRIP_TABS = [['plan', 'Plan'], ['packing', 'Packing'], ['budget', 'Budget'], ['weather', 'Weather'], ['nearby', 'Nearby'], ['tickets', 'Tickets']];
 function renderTrip(animate) {
   const t = getTrip(state.tripId); if (!t) { state.view = 'list'; return renderTrips(); }
@@ -409,7 +409,8 @@ function renderTrip(animate) {
 function drawTrip(t, fit) {
   layers.trip.clearLayers(); if (state.tripTab !== 'nearby') layers.nearby.clearLayers();
   const pts = t.destinations.map(d => [d.lat, d.lon]);
-  if (pts.length > 1) L.polyline(pts, {color: '#2dd4bf', weight: 3, opacity: .7, dashArray: '6 8', className: 'route'}).addTo(layers.trip);
+  const drew = drawTripHooks.some(h => { try { return h(t, layers.trip); } catch { return false; } });
+  if (pts.length > 1 && !drew) L.polyline(pts, {color: '#2dd4bf', weight: 3, opacity: .7, dashArray: '6 8', className: 'route'}).addTo(layers.trip);
   t.destinations.forEach((d, i) => L.marker([d.lat, d.lon], {icon: pinIcon(i + 1, d.connectivity?.low ? 'warn' : '')}).addTo(layers.trip).bindPopup(`<div class="t">${flag(d.cc)} ${esc(d.name)}</div><div class="s">${esc(d.sub || '')}</div>${d.connectivity?.low ? '<div class="s" style="color:#f5b84a">📶 Low signal likely</div>' : ''}`));
   if (fit && pts.length) { pts.length === 1 ? flyTo(pts[0][0], pts[0][1], 12) : (reduceMotion ? map.fitBounds(pts, fitPad({})) : map.flyToBounds(pts, fitPad({duration: 1.2}))); }
 }
@@ -674,11 +675,12 @@ async function downloadTrip(t) {
     set(0.88, 'Saving things to do & places to eat…');
     for (const d of t.destinations) { try { t.cache.nearby[d.id] = await fetchNearby(d); } catch {} }
     set(0.95, 'Saving currency rates…'); await getRates(true);
+    for (const st of downloadSteps) { set(st.at || 0.96, st.label); try { await st.run(t); } catch {} }
     set(0.98, 'Saving app & trip details…');
     for (const d of t.destinations) if (!d.connectivity) { try { await assessConnectivity(d); } catch {} }
     const okW = t.destinations.filter(d => t.cache.weather[d.id]).length, okN = t.destinations.filter(d => t.cache.nearby[d.id]).length;
     t.offline = {ok: true, at: Date.now(), tiles: urls.length - failed, failed, destKey: t.destinations.map(d => d.id).join(','), weather: okW, nearby: okN};
-    saveTrips(); set(1, `Done – ${urls.length - failed} map tiles, weather (${okW}/${t.destinations.length}), places (${okN}/${t.destinations.length}), rates, tickets & itinerary saved.`);
+    saveTrips(); set(1, `Done – ${urls.length - failed} map tiles, weather (${okW}/${t.destinations.length}), places (${okN}/${t.destinations.length}), rates${downloadSteps.map(st => st.done ? ', ' + st.done(t) : '').join('')}, tickets & itinerary saved.`);
     toast(failed ? `Saved for offline (${failed} tiles failed – try again later)` : '✓ Everything saved for offline use', 4000);
     updateNet();
     setTimeout(() => { if (state.tripId === t.id && state.view === 'trip') renderTrip(); }, 1600);
@@ -737,7 +739,7 @@ const R = window.roamly = {tripForm, fetchWeather, isDownloaded, tripLow, drawTr
   user: () => userNs,
   addTripTab(key, label, fn, after) { const i = after ? TRIP_TABS.findIndex(x => x[0] === after) + 1 : TRIP_TABS.length; TRIP_TABS.splice(i, 0, [key, label]); TRIP_RENDERERS[key] = fn; },
   addMainTab(key, label, hooks = {}) { if (!$(`.tabs .tab[data-tab="${key}"]`)) { const b = document.createElement('button'); b.className = 'tab'; b.dataset.tab = key; b.setAttribute('role', 'tab'); b.textContent = label; $('.tabs .ind').before(b); b.onclick = () => setMainTab(key); const s = document.createElement('section'); s.id = 'tab-' + key; s.className = 'tab-body hidden'; $('#tab-trips').after(s); } mainTabHooks[key] = hooks; requestAnimationFrame(() => moveIndicator($('.tabs'))); return $('#tab-' + key); },
-  addPopupAction(h) { popupHooks.push(h); }, addTripMenuItem(h) { tripMenuHooks.push(h); }, onBoot(h) { bootHooks.push(h); },
+  addPopupAction(h) { popupHooks.push(h); }, addDownloadStep(h) { downloadSteps.push(h); }, onTripDelete(h) { tripDeleteHooks.push(h); }, onDrawTrip(h) { drawTripHooks.push(h); }, addTripMenuItem(h) { tripMenuHooks.push(h); }, onBoot(h) { bootHooks.push(h); },
 };
 // Feature modules (loaded after this file) register themselves, then we render
 addEventListener('DOMContentLoaded', () => { bootHooks.forEach(h => h.init?.()); });

@@ -6,7 +6,7 @@ const fromB64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/
 async function pipe(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
 
 function snapshot(t) {
-  const {cache, offline, id, ...rest} = t;
+  const {cache, offline, id, journal, ...rest} = t; // the journal is private and its photos are device-only
   return {v: 1, ...rest, tickets: (t.tickets || []).map(({files, ...k}) => k)}; // attachments stay on the device
 }
 async function encode(t) { const json = new TextEncoder().encode(JSON.stringify(snapshot(t))); return 'z' + toB64u(await pipe(json, new CompressionStream('deflate-raw'))); }

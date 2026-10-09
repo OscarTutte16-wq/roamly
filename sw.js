@@ -1,8 +1,8 @@
 /* Roamly service worker: app shell precache + offline vector map (OpenFreeMap) */
-const SHELL = 'roamly-shell-v10', TILES = 'roamly-tiles', RUNTIME = 'roamly-tiles-runtime';
+const SHELL = 'roamly-shell-v11', TILES = 'roamly-tiles', RUNTIME = 'roamly-tiles-runtime';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'vendor/maplibre/maplibre-gl.js', 'vendor/maplibre/maplibre-gl.css', 'vendor/maplibre/leaflet-maplibre-gl.js', 'shell.css', 'data/lang.js', 'vendor/inter/inter-latin-wght-normal.woff2', 'vendor/inter/inter-latin-ext-wght-normal.woff2',
-  'features/shell.js', 'features/auth.js', 'features/share.js', 'features/home.js', 'features/profile.js', 'features/learn.js'];
+  'features/shell.js', 'features/auth.js', 'features/share.js', 'features/home.js', 'features/profile.js', 'features/learn.js', 'features/journal.js', 'features/routes.js', 'features.css'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(SHELL).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('roamly-shell') && k !== SHELL).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 let runtimeCount = 0;
