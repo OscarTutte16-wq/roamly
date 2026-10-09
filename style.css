@@ -338,3 +338,36 @@ a{color:var(--accent)}
 .fab{border:1px solid rgba(255,255,255,.1);background:rgba(17,22,29,.75)}
 @media (max-width: 760px){ .fab{top:calc(env(safe-area-inset-top) + 14px)} .tabs{padding:2px 18px 10px} }
 @media (min-width: 761px){ .fab{top:auto;bottom:24px;right:14px} }
+
+/* ================= Auth ================= */
+.auth{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:20px;background:radial-gradient(1200px 600px at 20% 0%,rgba(45,212,191,.16),transparent 60%),radial-gradient(900px 500px at 100% 100%,rgba(56,189,248,.10),transparent 60%),rgba(8,11,15,.78);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);animation:fadeIn .35s ease both}
+.auth.leaving{animation:fadeOut .3s ease both}
+.auth.leaving .auth-card{animation:modalOut .3s ease-in both}
+.auth-card{width:100%;max-width:380px;padding:30px 26px 22px;border-radius:26px;background:rgba(17,22,29,.62);border:1px solid rgba(255,255,255,.09);box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07);animation:modalIn .55s var(--spring) both}
+.auth-logo{display:flex;align-items:center;gap:12px;font-size:28px;font-weight:800;letter-spacing:-.03em}
+.auth-logo img{width:44px;height:44px;border-radius:12px}
+.auth-sub{color:var(--muted);margin:8px 0 22px;font-size:15px}
+.auth-tabs{position:relative;display:flex;gap:22px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.auth-tabs button{background:none;border:0;padding:8px 0;color:var(--muted);font-weight:600;cursor:pointer;transition:color .2s}
+.auth-tabs button.active{color:var(--text)}
+.auth-tabs .ind{position:absolute;left:0;bottom:-1px;height:2px;background:var(--accent);border-radius:2px;transition:transform .45s var(--spring),width .45s var(--spring)}
+.afield{display:block;margin-bottom:14px;animation:fadeUp .35s var(--ease-out) both}
+.afield span{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.afield input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);outline:none;transition:border-color .2s,box-shadow .2s}
+.afield input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,212,191,.14)}
+.afield.bad input{border-color:var(--danger);animation:shake .4s ease}
+.auth:not(.signup) .afield[data-f="name"]{display:none}
+.pw{position:relative}
+.pw input{padding-right:64px}
+.pw button{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;padding:6px}
+.aerr{min-height:20px;color:var(--danger);font-size:13px;margin:-2px 0 8px}
+.auth-go{width:100%;padding:13px;font-size:15px;border-radius:14px}
+.auth-go.busy{opacity:.7}
+#authGuest{display:block;margin:12px auto 0}
+.auth-note{text-align:center;color:#5f6b79;font-size:12px;margin:6px 0 0}
+.avatar{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:linear-gradient(135deg,#14b8a6,#0f766e);color:#04201c;font-weight:800;font-size:13px;cursor:pointer;display:grid;place-items:center;transition:transform .2s var(--spring)}
+.avatar.guest{background:rgba(255,255,255,.06);color:var(--muted)}
+.avatar:active{transform:scale(.9)}
+.menu-head{padding:8px 12px 10px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:4px}
+.menu-head b{display:block}
+.menu-head span{font-size:12.5px;color:var(--muted)}
