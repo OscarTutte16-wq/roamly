@@ -47,10 +47,15 @@ const SMALL_TYPES = new Set(['village','hamlet','isolated_dwelling','farm','loca
 const WMO = {0:['☀️','Clear'],1:['🌤️','Mostly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],45:['🌫️','Fog'],48:['🌫️','Rime fog'],51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy drizzle'],56:['🌧️','Freezing drizzle'],57:['🌧️','Freezing drizzle'],61:['🌦️','Light rain'],63:['🌧️','Rain'],65:['🌧️','Heavy rain'],66:['🌧️','Freezing rain'],67:['🌧️','Freezing rain'],71:['🌨️','Light snow'],73:['🌨️','Snow'],75:['❄️','Heavy snow'],77:['🌨️','Snow grains'],80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent showers'],85:['🌨️','Snow showers'],86:['🌨️','Snow showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunder & hail'],99:['⛈️','Thunder & hail']};
 
 /* ---------------- Storage ---------------- */
+// Per-user namespace: data lives under roamly.u.<userId>.<key>; 'guest' for no account
+let userNs = localStorage.getItem('roamly.session') || 'guest';
 const store = {
-  get(k, d) { try { return JSON.parse(localStorage.getItem('roamly.' + k)) ?? d; } catch { return d; } },
-  set(k, v) { localStorage.setItem('roamly.' + k, JSON.stringify(v)); },
+  get(k, d) { try { return JSON.parse(localStorage.getItem(`roamly.u.${userNs}.${k}`)) ?? d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(`roamly.u.${userNs}.${k}`, JSON.stringify(v)); },
+  global: { get(k, d) { try { return JSON.parse(localStorage.getItem('roamly.' + k)) ?? d; } catch { return d; } }, set(k, v) { localStorage.setItem('roamly.' + k, JSON.stringify(v)); } },
 };
+// One-time migration of pre-account data into the guest space
+if (!localStorage.getItem('roamly.migrated')) { for (const k of ['trips', 'rates', 'lastCur']) { const v = localStorage.getItem('roamly.' + k); if (v != null && localStorage.getItem('roamly.u.guest.' + k) == null) localStorage.setItem('roamly.u.guest.' + k, v); } localStorage.setItem('roamly.migrated', '1'); }
 let trips = store.get('trips', []);
 const saveTrips = () => store.set('trips', trips);
 const getTrip = id => trips.find(t => t.id === id);
@@ -98,7 +103,8 @@ async function fetchJSON(url, opts = {}, timeout = 15000) {
 }
 
 /* ---------------- Map ---------------- */
-const map = L.map('map', {zoomControl: false, worldCopyJump: true, maxZoom: 19}).setView([54.5, -3], 5);
+function isMobileStart() { return matchMedia('(max-width: 760px)').matches; }
+const map = L.map('map', {zoomControl: false, worldCopyJump: true, maxZoom: 19}).setView(isMobileStart() ? [44, 2] : [52, -6], isMobileStart() ? 4 : 5);
 if (!matchMedia('(max-width: 760px)').matches) L.control.zoom({position: 'topright'}).addTo(map);
 map.attributionControl.setPrefix(false);
 const glLayer = L.maplibreGL({style: OFM_STYLE, attribution: ATTRIB, interactive: false}).addTo(map);
@@ -109,16 +115,16 @@ const glLayer = L.maplibreGL({style: OFM_STYLE, attribution: ATTRIB, interactive
     const set = (id, prop, val) => { try { m.setPaintProperty(id, prop, val); } catch {} };
     for (const l of m.getStyle().layers) {
       const id = l.id;
-      if (l.type === 'background') set(id, 'background-color', '#0b0f14');
-      else if (l.type === 'raster') set(id, 'raster-opacity', 0.25);
-      else if (/water/.test(id) && l.type === 'fill') set(id, 'fill-color', '#0c1a24');
-      else if (/water/.test(id) && l.type === 'line') set(id, 'line-color', '#0c1a24');
-      else if (/park|wood|grass|landcover|landuse/.test(id) && l.type === 'fill') { set(id, 'fill-color', '#0f1a17'); set(id, 'fill-opacity', 0.7); }
-      else if (/building/.test(id) && l.type === 'fill') set(id, 'fill-color', '#161d26');
-      else if (/motorway|trunk|primary/.test(id) && l.type === 'line' && !/casing/.test(id)) set(id, 'line-color', '#33404e');
-      else if (/highway|road|street|minor|secondary|tertiary/.test(id) && l.type === 'line' && !/casing/.test(id)) set(id, 'line-color', '#222b36');
-      else if (/boundary/.test(id) && l.type === 'line') set(id, 'line-color', '#3a4756');
-      else if (l.type === 'symbol') { set(id, 'text-color', /place|city|town|village/.test(id) ? '#d5dde6' : '#7f8c9b'); set(id, 'text-halo-color', '#0b0f14'); set(id, 'text-halo-width', 1.2); }
+      if (l.type === 'background') set(id, 'background-color', '#1d2633');
+      else if (l.type === 'raster') set(id, 'raster-opacity', 0.18);
+      else if (/water/.test(id) && l.type === 'fill') set(id, 'fill-color', '#0a1824');
+      else if (/water/.test(id) && l.type === 'line') set(id, 'line-color', '#0a1824');
+      else if (/park|wood|grass|landcover|landuse/.test(id) && l.type === 'fill') { set(id, 'fill-color', '#17302a'); set(id, 'fill-opacity', 0.75); }
+      else if (/building/.test(id) && l.type === 'fill') set(id, 'fill-color', '#232d39');
+      else if (/motorway|trunk|primary/.test(id) && l.type === 'line' && !/casing/.test(id)) set(id, 'line-color', '#4a5a6c');
+      else if (/highway|road|street|minor|secondary|tertiary/.test(id) && l.type === 'line' && !/casing/.test(id)) set(id, 'line-color', '#313d4b');
+      else if (/boundary/.test(id) && l.type === 'line') set(id, 'line-color', '#5a6b7e');
+      else if (l.type === 'symbol') { set(id, 'text-color', /place|city|town|village/.test(id) ? '#eef3f7' : '#9fadbb'); set(id, 'text-halo-color', '#111820'); set(id, 'text-halo-width', 1.2); }
     }
   };
   m.once('styledata', tune); if (m.isStyleLoaded()) tune();
@@ -131,13 +137,14 @@ function viewOffset() { const pn = document.getElementById('panel'); if (matchMe
 function fitPad(extra = {}) { const pn = document.getElementById('panel'); const mob = matchMedia('(max-width: 760px)').matches; return {paddingTopLeft: mob ? [30, 60] : [pn.offsetWidth + 40, 40], paddingBottomRight: mob ? [30, (pn.classList.contains('collapsed') ? 132 : pn.offsetHeight) + 20] : [50, 40], ...extra}; }
 function flyTo(lat, lon, zoom) { const c = map.unproject(map.project([lat, lon], zoom).add(viewOffset()), zoom); reduceMotion ? map.setView(c, zoom) : map.flyTo(c, zoom, {duration: 1.3, easeLinearity: 0.2}); }
 function zoomForPlace(p) { const r = p.rank || 16; return r >= 26 ? 18 : r >= 20 ? 16 : r >= 18 ? 15 : r >= 16 ? 13 : r >= 12 ? 10 : 6; }
+const popupHooks = [];
 function wirePopAdd(p) { const b = $('#popAdd'); b && (b.onclick = () => addToTripPicker(p)); }
 function showPlace(p) {
   collapseSheetOnMobile();
   layers.search.clearLayers();
   const m = L.marker([p.lat, p.lon], {icon: pinIcon('★', 'search')}).addTo(layers.search);
-  m.bindPopup(`<div class="t">${flag(p.cc)} ${esc(p.name)}</div><div class="s">${esc(p.sub)}</div><button class="btn primary sm" id="popAdd">＋ Add to trip</button>`);
-  m.on('popupopen', () => wirePopAdd(p));
+  m.bindPopup(`<div class="t">${flag(p.cc)} ${esc(p.name)}</div><div class="s">${esc(p.sub)}</div><div class="row"><button class="btn primary sm" id="popAdd">＋ Add to trip</button>${popupHooks.map(h => h.html(p)).join('')}</div>`);
+  m.on('popupopen', () => { wirePopAdd(p); popupHooks.forEach(h => h.wire(p)); });
   if (p.bbox) reduceMotion ? map.fitBounds(p.bbox, fitPad({maxZoom: 16})) : map.flyToBounds(p.bbox, fitPad({maxZoom: 16, duration: 1.3}));
   else flyTo(p.lat, p.lon, zoomForPlace(p));
   setTimeout(() => m.openPopup(), reduceMotion ? 50 : 1350);
@@ -288,10 +295,12 @@ function setMainTab(tab) {
   state.tab = tab;
   $$('.tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   moveIndicator($('.tabs'));
-  ['explore', 'trips'].forEach(n => { const el = $('#tab-' + n); el.classList.toggle('hidden', n !== tab); if (n === tab) { el.classList.remove('view-in'); void el.offsetWidth; el.classList.add('view-in'); } });
+  $$('.tab-body').forEach(el => { const n = el.id.slice(4); el.classList.toggle('hidden', n !== tab); if (n === tab) { el.classList.remove('view-in'); void el.offsetWidth; el.classList.add('view-in'); } });
   if (tab === 'trips') renderTrips(true); else { layers.trip.clearLayers(); layers.nearby.clearLayers(); }
+  Object.entries(mainTabHooks).forEach(([k, h]) => k === tab ? h.show?.() : h.hide?.());
   expandSheet();
 }
+const mainTabHooks = {};
 $$('.tabs .tab').forEach(b => b.onclick = () => setMainTab(b.dataset.tab));
 
 function renderTrips(fit) {
@@ -362,6 +371,7 @@ async function addDestination(t, p) {
 }
 
 /* ---------------- Trip detail ---------------- */
+const TRIP_RENDERERS = {};
 const TRIP_TABS = [['plan', 'Plan'], ['packing', 'Packing'], ['budget', 'Budget'], ['weather', 'Weather'], ['nearby', 'Nearby'], ['tickets', 'Tickets']];
 function renderTrip(animate) {
   const t = getTrip(state.tripId); if (!t) { state.view = 'list'; return renderTrips(); }
@@ -396,7 +406,7 @@ function drawTrip(t, fit) {
 function renderTripBody(t) {
   const body = $('#tripBody'); body.classList.remove('fade-in'); void body.offsetWidth; body.classList.add('fade-in');
   if (state.tripTab !== 'nearby') layers.nearby.clearLayers();
-  ({plan: renderPlan, packing: renderPacking, budget: renderBudget, weather: renderWeather, nearby: renderNearby, tickets: renderTickets})[state.tripTab](t, body);
+  ({plan: renderPlan, packing: renderPacking, budget: renderBudget, weather: renderWeather, nearby: renderNearby, tickets: renderTickets, ...TRIP_RENDERERS})[state.tripTab](t, body);
 }
 
 /* Plan: destinations + day-by-day itinerary */
@@ -704,6 +714,21 @@ requestAnimationFrame(() => moveIndicator($('.tabs')));
 updateNet();
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW registration failed', e)));
 setTimeout(async () => { for (const t of trips) for (const d of t.destinations) if (!d.connectivity && navigator.onLine) { try { await assessConnectivity(d); saveTrips(); } catch {} } }, 1500);
-if (trips.length) setMainTab('trips');
-window.roamly = {trips: () => trips, runSearch, downloadTrip, getTrip, state, updateNet, map, gl: () => glLayer.getMaplibreMap()};
+function reloadUserData(ns) {
+  userNs = ns; trips = store.get('trips', []); trips.forEach(normTrip);
+  state.view = 'list'; state.tripId = null; layers.search.clearLayers();
+  bootHooks.forEach(h => h.userChanged?.());
+  setMainTab(trips.length ? 'trips' : 'explore'); updateNet();
+}
+const bootHooks = [];
+const R = window.roamly = {trips: () => trips, setTrips: v => { trips = v; }, runSearch, downloadTrip, getTrip, state, updateNet, map, gl: () => glLayer.getMaplibreMap(),
+  store, saveTrips, normTrip, modal, toast, esc, $, $$, uid, sleep, flag, fmtDate, today, stagger, skeleton, fetchJSON, idb, layers, flyTo, fitPad, pinIcon, reduceMotion,
+  collapseSheetOnMobile, expandSheet, typeLabel, renderTrip, renderTrips, renderTripBody, setMainTab, moveIndicator, reloadUserData, isMobile,
+  user: () => userNs,
+  addTripTab(key, label, fn, after) { const i = after ? TRIP_TABS.findIndex(x => x[0] === after) + 1 : TRIP_TABS.length; TRIP_TABS.splice(i, 0, [key, label]); TRIP_RENDERERS[key] = fn; },
+  addMainTab(key, label, hooks = {}) { if (!$(`.tabs .tab[data-tab="${key}"]`)) { const b = document.createElement('button'); b.className = 'tab'; b.dataset.tab = key; b.setAttribute('role', 'tab'); b.textContent = label; $('.tabs .ind').before(b); b.onclick = () => setMainTab(key); const s = document.createElement('section'); s.id = 'tab-' + key; s.className = 'tab-body hidden'; $('#tab-trips').after(s); } mainTabHooks[key] = hooks; requestAnimationFrame(() => moveIndicator($('.tabs'))); return $('#tab-' + key); },
+  addPopupAction(h) { popupHooks.push(h); }, onBoot(h) { bootHooks.push(h); },
+};
+// Feature modules (loaded after this file) register themselves, then we render
+addEventListener('DOMContentLoaded', () => { bootHooks.forEach(h => h.init?.()); if (trips.length) setMainTab('trips'); });
 })();
