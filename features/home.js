@@ -49,7 +49,7 @@ function render() {
   $('#qNew').onclick = () => R.tripForm();
   $('#qSearch').onclick = () => { R.setMainTab('map'); setTimeout(() => $('#searchInput').focus(), 350); };
   $('#qDl').onclick = () => { if (!t) return R.toast('Create a trip first'); open(); setTimeout(() => R.downloadTrip(t), 400); };
-  $('#qLearn').onclick = () => R.setMainTab('learn');
+  $('#qLearn').onclick = () => R.learn.open('phrases');
   clearInterval(timer); timer = setInterval(() => { const c = t && countdown(t), el = $('#cd'); if (!c || !el) return; const b = el.querySelectorAll('b'); [c.d, c.h, c.m].forEach((v, i) => { if (b[i].textContent != v) { b[i].textContent = v; b[i].animate?.([{transform: 'translateY(-6px)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 400, easing: 'cubic-bezier(.2,1,.3,1)'}); } }); }, 20000);
   if (t && t.destinations[0]) weather(t);
   R.home.onJournal?.(t);

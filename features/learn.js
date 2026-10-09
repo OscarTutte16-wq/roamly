@@ -4,7 +4,7 @@ const R = window.roamly, {$, $$, esc, toast} = R;
 const LANGS = window.ROAMLY_LANGS || {}, TOPICS = window.ROAMLY_TOPICS || {}, CL = window.ROAMLY_COUNTRY_LANG || {};
 const NAMES = {en: 'English', ...(window.ROAMLY_LANG_NAMES || {})};
 const ENGLISH_CC = ['gb', 'ie', 'us', 'au', 'nz', 'ca', 'mt'];
-const st = {mode: 'phrases', lang: null, topic: null, q: ''};
+const st = {mode: null, lang: null, topic: null, q: ''};
 const modes = [['phrases', 'Phrasebook'], ['translate', 'Translate'], ['saved', 'Saved']], renderers = {};
 const saved = () => R.store.get('phrases.saved', []), setSaved = v => R.store.set('phrases.saved', v);
 const recent = () => R.store.get('tr.recent', []), setRecent = v => R.store.set('tr.recent', v.slice(0, 30));
