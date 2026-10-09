@@ -371,14 +371,14 @@ async function addDestination(t, p) {
 }
 
 /* ---------------- Trip detail ---------------- */
-const TRIP_RENDERERS = {};
+const TRIP_RENDERERS = {}, tripMenuHooks = [];
 const TRIP_TABS = [['plan', 'Plan'], ['packing', 'Packing'], ['budget', 'Budget'], ['weather', 'Weather'], ['nearby', 'Nearby'], ['tickets', 'Tickets']];
 function renderTrip(animate) {
   const t = getTrip(state.tripId); if (!t) { state.view = 'list'; return renderTrips(); }
   $('#tripList').classList.add('hidden'); const el = $('#tripDetail'); el.classList.remove('hidden');
   const low = tripLow(t), dl = isDownloaded(t);
   el.innerHTML = `<div class="trip-head"><button class="icon-btn" id="back" aria-label="Back to trips">‹</button><div class="grow"><h2 class="trip-title">${esc(t.name)}</h2><div class="meta">${t.start ? `${fmtDate(t.start)} – ${fmtDate(t.end)}` : `${t.dayCount} days`}${dl ? ' · offline ✓' : ''}</div></div>
-      <div class="menu-wrap"><button class="icon-btn" id="tripMenu" aria-label="Trip options">⋯</button><div class="menu hidden" id="tripMenuList"><button id="dlTrip">${dl ? 'Update offline copy' : 'Download for offline'}</button><button id="editTrip">Edit trip</button><button id="delTrip" class="danger-t">Delete trip</button></div></div></div>
+      <div class="menu-wrap"><button class="icon-btn" id="tripMenu" aria-label="Trip options">⋯</button><div class="menu hidden" id="tripMenuList"><button id="dlTrip">${dl ? 'Update offline copy' : 'Download for offline'}</button><button id="editTrip">Edit trip</button>${tripMenuHooks.map((h, i) => `<button data-hook="${i}">${esc(h.label(t))}</button>`).join('')}<button id="delTrip" class="danger-t">Delete trip</button></div></div></div>
     <div id="dlProgress" class="hidden"><div class="progress"><div></div></div><div class="meta" id="dlText" style="margin-top:4px"></div></div>
     ${low.length && !dl ? `<div class="lowsig pop-in" id="lowSig"><h4>Low signal expected</h4><p>${low.map(d => esc(d.name)).join(', ')} ${low.length === 1 ? 'looks' : 'look'} remote. Save the trip so it works without signal.</p>
       <div class="row"><button class="btn primary sm" id="dlAll">Download everything</button><details><summary>Why?</summary><ul>${[...new Set(low.flatMap(d => d.connectivity.reasons))].slice(0, 4).map(r => `<li>${esc(r)}</li>`).join('')}</ul></details></div></div>` : ''}
@@ -389,6 +389,7 @@ function renderTrip(animate) {
   const menu = $('#tripMenuList'), closeMenu = () => menu.classList.add('hidden');
   $('#tripMenu').onclick = e => { e.stopPropagation(); menu.classList.toggle('hidden'); if (!menu.classList.contains('hidden')) setTimeout(() => document.addEventListener('click', closeMenu, {once: true}), 0); };
   $('#editTrip').onclick = () => { closeMenu(); tripForm(t); };
+  $$('#tripMenuList [data-hook]').forEach(b => b.onclick = () => { closeMenu(); tripMenuHooks[+b.dataset.hook].run(t); });
   $('#dlTrip').onclick = () => { closeMenu(); downloadTrip(t); };
   $('#delTrip').onclick = async () => { closeMenu(); if (!confirm(`Delete “${t.name}”? This can't be undone.`)) return; for (const tk of t.tickets) for (const f of tk.files || []) await idb.del(f.id).catch(() => {}); trips = trips.filter(x => x.id !== t.id); saveTrips(); state.view = 'list'; renderTrips(true); toast('Trip deleted'); };
   const da = $('#dlAll'); da && (da.onclick = () => downloadTrip(t));
@@ -727,7 +728,7 @@ const R = window.roamly = {trips: () => trips, setTrips: v => { trips = v; }, ru
   user: () => userNs,
   addTripTab(key, label, fn, after) { const i = after ? TRIP_TABS.findIndex(x => x[0] === after) + 1 : TRIP_TABS.length; TRIP_TABS.splice(i, 0, [key, label]); TRIP_RENDERERS[key] = fn; },
   addMainTab(key, label, hooks = {}) { if (!$(`.tabs .tab[data-tab="${key}"]`)) { const b = document.createElement('button'); b.className = 'tab'; b.dataset.tab = key; b.setAttribute('role', 'tab'); b.textContent = label; $('.tabs .ind').before(b); b.onclick = () => setMainTab(key); const s = document.createElement('section'); s.id = 'tab-' + key; s.className = 'tab-body hidden'; $('#tab-trips').after(s); } mainTabHooks[key] = hooks; requestAnimationFrame(() => moveIndicator($('.tabs'))); return $('#tab-' + key); },
-  addPopupAction(h) { popupHooks.push(h); }, onBoot(h) { bootHooks.push(h); },
+  addPopupAction(h) { popupHooks.push(h); }, addTripMenuItem(h) { tripMenuHooks.push(h); }, onBoot(h) { bootHooks.push(h); },
 };
 // Feature modules (loaded after this file) register themselves, then we render
 addEventListener('DOMContentLoaded', () => { bootHooks.forEach(h => h.init?.()); if (trips.length) setMainTab('trips'); });
