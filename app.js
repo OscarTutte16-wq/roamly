@@ -264,7 +264,11 @@ $$('#searchHint [data-q]').forEach(a => a.onclick = e => { e.preventDefault(); $
 /* ---------------- Low-signal heuristic ---------------- */
 async function overpass(query, timeout = 20000) {
   let err;
-  for (const ep of OVERPASS) { try { return await fetchJSON(ep, {method: 'POST', body: 'data=' + encodeURIComponent(query), headers: {'Content-Type': 'application/x-www-form-urlencoded'}}, timeout); } catch (e) { err = e; } }
+  // Public Overpass servers are often busy (504/429): try each mirror, then back off and try the main one again
+  for (const [i, ep] of [...OVERPASS, OVERPASS[0], OVERPASS[3]].entries()) {
+    if (i >= OVERPASS.length) await sleep(1500 * (i - OVERPASS.length + 1));
+    try { return await fetchJSON(ep, {method: 'POST', body: 'data=' + encodeURIComponent(query), headers: {'Content-Type': 'application/x-www-form-urlencoded'}}, timeout); } catch (e) { err = e; }
+  }
   throw err;
 }
 async function assessConnectivity(d) {
